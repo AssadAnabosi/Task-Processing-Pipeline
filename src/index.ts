@@ -1,11 +1,11 @@
-import express from 'express';
+import express from "express";
 
 const app = express();
 
 const PORT = process.env.PORT || 8001;
 
-app.get('/api', (req, res) => {
-    res.status(200).json({ message: 'Hello from the API!' });
+app.get("/api", (req, res) => {
+    res.status(200).json({ message: "Hello from the API!" });
 });
 
 app.listen(PORT, () => {
