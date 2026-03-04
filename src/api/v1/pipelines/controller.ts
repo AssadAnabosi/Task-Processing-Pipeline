@@ -1,24 +1,57 @@
 import { type Request, type Response } from "express";
+import * as queries from "@db/queries/pipelines.js";
+import { CREATED, NO_CONTENT } from "@util/constants/statusCodes";
+import { BadRequestError, NotFoundError } from "@util/responseErrors";
 
-export function getPipelines(req: Request, res: Response) {
-    res.json({ message: "Retrieved pipelines data" });
+export async function getPipelines(_req: Request, res: Response) {
+    const rows = await queries.getAllPipelines();
+    res.json({ data: rows });
 }
 
-export function postPipeline(req: Request, res: Response) {
-    res.json({ message: "Pipeline created", data: req.body });
+export async function postPipeline(req: Request, res: Response) {
+    const {
+        name,
+        description,
+        source_path,
+        secret,
+        action_type,
+        action_config,
+    } = req.body;
+    if (!name || !source_path || !action_type) {
+        throw new BadRequestError(
+            "name, source_path and action_type are required"
+        );
+    }
+
+    const created = await queries.createPipeline({
+        name,
+        description,
+        source_path,
+        secret,
+        action_type,
+        action_config,
+    });
+
+    res.status(CREATED).json({ data: created });
 }
 
-export function getPipelineById(req: Request, res: Response) {
-    const { id } = req.params;
-    res.json({ message: `Retrieved pipeline with ID: ${id}` });
+export async function getPipelineById(req: Request, res: Response) {
+    const id = req.params.id as string;
+    const row = await queries.getPipelineById(id);
+    if (!row) throw new NotFoundError("Pipeline not found");
+    res.json({ data: row });
 }
 
-export function updatePipeline(req: Request, res: Response) {
-    const { id } = req.params;
-    res.json({ message: `Updated pipeline with ID: ${id}`, data: req.body });
+export async function updatePipeline(req: Request, res: Response) {
+    const id = req.params.id as string;
+    const updates = req.body;
+    const updated = await queries.updatePipelineById(id, updates);
+    if (!updated) throw new NotFoundError("Pipeline not found");
+    res.json({ data: updated });
 }
 
-export function deletePipeline(req: Request, res: Response) {
-    const { id } = req.params;
-    res.json({ message: `Deleted pipeline with ID: ${id}` });
+export async function deletePipeline(req: Request, res: Response) {
+    const id = req.params.id as string;
+    await queries.deletePipelineById(id);
+    res.status(NO_CONTENT).send();
 }

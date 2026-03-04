@@ -1,4 +1,8 @@
 node_modules/
 
+drizzle/migrations/
+
+/dist/
+
 // Ignore environment variable files!!!
 .env*

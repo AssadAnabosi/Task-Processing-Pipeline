@@ -10,6 +10,14 @@
 
         // Bundler mode
         "moduleResolution": "bundler",
+        "baseUrl": ".",
+        "paths": {
+            "@root/*": ["src/*"],
+            "@middleware/*": ["src/middleware/*"],
+            "@util/*": ["src/util/*"],
+            "@v1/*": ["src/api/v1/*"],
+            "@db/*": ["src/db/*"]
+        },
         "allowImportingTsExtensions": true,
         "verbatimModuleSyntax": true,
         "noEmit": true,
