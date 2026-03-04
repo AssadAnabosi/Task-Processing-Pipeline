@@ -1,12 +1,22 @@
 import express from "express";
+import config from "./config";
 import apiRouter from "./api";
+
 
 const app = express();
 
-const PORT = process.env.PORT || 8001;
+app.use(express.json());
 
-app.use("/api/v1", apiRouter);
+app.use("/api", apiRouter);
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// Handle undefined routes
+app.use((_req, res) => {
+    return res.status(404).json({
+        message:
+            "Oops, you have reached an undefined route, please check your request and try again",
+    });
+});
+
+app.listen(config.api.port, () => {
+    console.log(`Server is running on port ${config.api.port} in ${config.api.platform} mode`);
 });
