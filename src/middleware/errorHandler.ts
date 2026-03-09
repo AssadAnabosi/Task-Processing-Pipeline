@@ -1,41 +1,15 @@
 import { type NextFunction, type Request, type Response } from "express";
-import {
-    BadRequestError,
-    ForbiddenError,
-    NotFoundError,
-    UnauthorizedError,
-} from "@util/responseErrors";
-import {
-    BAD_REQUEST,
-    NOT_AUTHENTICATED,
-    NOT_FOUND,
-    NOT_AUTHORIZED,
-    INTERNAL_SERVER_ERROR,
-} from "@util/constants/statusCodes";
+import { AppError } from "@util/responseErrors";
+import { INTERNAL_SERVER_ERROR } from "@util/constants/statusCodes";
 
 export function middlewareErrorHandler(
-    err: any,
+    err: unknown,
     _req: Request,
     res: Response,
     _next: NextFunction
 ) {
-    if (err instanceof BadRequestError) {
-        res.status(BAD_REQUEST).json({ error: err.message });
-        return;
-    }
-
-    if (err instanceof UnauthorizedError) {
-        res.status(NOT_AUTHENTICATED).json({ error: err.message });
-        return;
-    }
-
-    if (err instanceof ForbiddenError) {
-        res.status(NOT_AUTHORIZED).json({ error: err.message });
-        return;
-    }
-
-    if (err instanceof NotFoundError) {
-        res.status(NOT_FOUND).json({ error: err.message });
+    if (err instanceof AppError) {
+        res.status(err.statusCode).json(err.toJSON());
         return;
     }
 
@@ -44,3 +18,4 @@ export function middlewareErrorHandler(
         error: "Something went wrong on our end",
     });
 }
+

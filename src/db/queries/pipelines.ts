@@ -1,5 +1,5 @@
 import db from "@db/index";
-import { pipelines } from "@db/schema";
+import { pipelines, type PipelineInsert } from "@db/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
 export async function getAllPipelines(sort: "asc" | "desc" = "asc") {
@@ -13,24 +13,10 @@ export async function getAllPipelines(sort: "asc" | "desc" = "asc") {
         );
 }
 
-export async function createPipeline(data: {
-    name: string;
-    description?: string | null;
-    source_path: string;
-    secret?: string | null;
-    action_type: string;
-    action_config?: unknown;
-}) {
+export async function createPipeline(data: Omit<PipelineInsert, "id" | "created_at" | "updated_at">) {
     const [row] = await db
         .insert(pipelines)
-        .values({
-            name: data.name,
-            description: data.description ?? null,
-            source_path: data.source_path,
-            secret: data.secret ?? null,
-            action_type: data.action_type,
-            action_config: data.action_config ?? {},
-        })
+        .values(data)
         .returning();
 
     return row;
@@ -47,7 +33,7 @@ export async function getPipelineById(id: string) {
 
 export async function updatePipelineById(
     id: string,
-    updates: Partial<Record<string, unknown>>
+    updates: Partial<Omit<PipelineInsert, "id" | "created_at" | "updated_at">>
 ) {
     const [row] = await db
         .update(pipelines)
