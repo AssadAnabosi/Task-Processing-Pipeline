@@ -30,6 +30,15 @@ export async function getPipelineById(id: string) {
     return rows[0] ?? null;
 }
 
+export async function getPipelineBySourcePath(sourcePath: string) {
+    const rows = await db
+        .select()
+        .from(pipelines)
+        .where(eq(pipelines.source_path, sourcePath))
+        .limit(1);
+    return rows[0] ?? null;
+}
+
 export async function updatePipelineById(
     id: string,
     updates: Partial<Omit<PipelineInsert, "id" | "created_at" | "updated_at">>

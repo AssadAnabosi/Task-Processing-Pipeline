@@ -1,5 +1,5 @@
 import db from "@db/index";
-import { jobs } from "@db/schema";
+import { jobs, type JobInsert } from "@db/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
 export async function getAllJobs(sort: "asc" | "desc" = "asc") {
@@ -12,4 +12,16 @@ export async function getAllJobs(sort: "asc" | "desc" = "asc") {
 export async function getJobById(id: string) {
     const rows = await db.select().from(jobs).where(eq(jobs.id, id)).limit(1);
     return rows[0] ?? null;
+}
+
+export function createJob(
+    data: Omit<JobInsert, "id" | "created_at" | "updated_at" | "status">
+) {
+    return db
+        .insert(jobs)
+        .values({
+            ...data,
+            status: "pending",
+        })
+        .returning();
 }
