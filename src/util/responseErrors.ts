@@ -64,4 +64,3 @@ export class NotFoundError extends AppError {
         return { error: this.message };
     }
 }
-

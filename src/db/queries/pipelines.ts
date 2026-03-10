@@ -13,11 +13,10 @@ export async function getAllPipelines(sort: "asc" | "desc" = "asc") {
         );
 }
 
-export async function createPipeline(data: Omit<PipelineInsert, "id" | "created_at" | "updated_at">) {
-    const [row] = await db
-        .insert(pipelines)
-        .values(data)
-        .returning();
+export async function createPipeline(
+    data: Omit<PipelineInsert, "id" | "created_at" | "updated_at">
+) {
+    const [row] = await db.insert(pipelines).values(data).returning();
 
     return row;
 }

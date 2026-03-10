@@ -18,4 +18,3 @@ export function middlewareErrorHandler(
         error: "Something went wrong on our end",
     });
 }
-

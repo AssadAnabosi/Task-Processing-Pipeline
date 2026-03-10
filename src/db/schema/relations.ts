@@ -8,7 +8,6 @@ export const pipelinesRelations = relations(pipelines, ({ many }) => ({
     jobs: many(jobs),
 }));
 
-
 export const jobsRelations = relations(jobs, ({ one }) => ({
     pipeline: one(pipelines, {
         fields: [jobs.pipeline_id],
