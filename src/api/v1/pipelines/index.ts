@@ -4,6 +4,7 @@ import { validateBody } from "@middleware/validateBody";
 import { createPipelineSchema, updatePipelineSchema } from "./schemas";
 
 import jobsRouter from "./jobs";
+import subscribersRouter from "./subscribers";
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router
     .delete(controller.deletePipeline);
 
 router.use(`${base}/jobs`, jobsRouter);
+router.use(`${base}/subscribers`, subscribersRouter);
 
 export default router;
