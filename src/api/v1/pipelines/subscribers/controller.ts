@@ -8,7 +8,7 @@ import {
 } from "./schemas";
 
 export async function getSubscribers(
-    req: Request<{ pipelineId: string }, {}, {}>,
+    req: Request<{ pipelineId: string }, unknown, unknown>,
     res: Response
 ) {
     const pipelineId = req.params.pipelineId as string;
@@ -17,7 +17,7 @@ export async function getSubscribers(
 }
 
 export async function postSubscriber(
-    req: Request<{ pipelineId: string }, {}, CreateSubscriberBody>,
+    req: Request<{ pipelineId: string }, unknown, CreateSubscriberBody>,
     res: Response
 ) {
     const pipelineId = req.params.pipelineId as string;
@@ -29,7 +29,7 @@ export async function postSubscriber(
 }
 
 export async function getSubscriberById(
-    req: Request<{ subscriberId: string }, {}, {}>,
+    req: Request<{ subscriberId: string }, unknown, unknown>,
     res: Response
 ) {
     const subscriberId = req.params.subscriberId as string;
@@ -41,7 +41,7 @@ export async function getSubscriberById(
 }
 
 export async function updateSubscriber(
-    req: Request<{ subscriberId: string }, {}, UpdateSubscriberBody>,
+    req: Request<{ subscriberId: string }, unknown, UpdateSubscriberBody>,
     res: Response
 ) {
     const subscriberId = req.params.subscriberId as string;
@@ -50,7 +50,7 @@ export async function updateSubscriber(
 }
 
 export async function deleteSubscriber(
-    req: Request<{ subscriberId: string }, {}, {}>,
+    req: Request<{ subscriberId: string }, unknown, unknown>,
     res: Response
 ) {
     const subscriberId = req.params.subscriberId as string;

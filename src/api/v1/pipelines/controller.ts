@@ -10,7 +10,7 @@ export async function getPipelines(_req: Request, res: Response) {
 }
 
 export async function postPipeline(
-    req: Request<{}, {}, CreatePipelineBody>,
+    req: Request<Record<string, never>, unknown, CreatePipelineBody>,
     res: Response
 ) {
     const created = await queries.createPipeline(req.body);
@@ -25,7 +25,7 @@ export async function getPipelineById(req: Request, res: Response) {
 }
 
 export async function updatePipeline(
-    req: Request<{ pipelineId: string }, {}, UpdatePipelineBody>,
+    req: Request<{ pipelineId: string }, unknown, UpdatePipelineBody>,
     res: Response
 ) {
     const { pipelineId } = req.params;
