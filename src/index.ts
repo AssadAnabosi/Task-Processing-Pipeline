@@ -9,6 +9,7 @@ import { NOT_FOUND } from "@util/constants/statusCodes";
 import { middlewareErrorHandler } from "@middleware/errorHandler";
 
 import apiRouter from "./api";
+import { startAllWorkers } from "./workers";
 
 async function main() {
     // Run database migrations before starting the server
@@ -19,6 +20,8 @@ async function main() {
         console.error("Database migration failed:", err);
         process.exit(1);
     }
+
+    startAllWorkers();
 
     const app = express();
 
