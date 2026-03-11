@@ -2,7 +2,7 @@ import db from "@db/index";
 import { jobs, type JobInsert } from "@db/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
-export async function getAllJobs(sort: "asc" | "desc" = "asc") {
+export async function getAllJobs(sort: "asc" | "desc" = "desc") {
     return await db
         .select()
         .from(jobs)

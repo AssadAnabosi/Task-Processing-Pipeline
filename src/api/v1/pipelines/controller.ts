@@ -4,8 +4,9 @@ import { CREATED, NO_CONTENT } from "@util/constants/statusCodes";
 import { NotFoundError } from "@util/responseErrors";
 import { type CreatePipelineBody, type UpdatePipelineBody } from "./schemas";
 
-export async function getPipelines(_req: Request, res: Response) {
-    const rows = await queries.getAllPipelines();
+export async function getPipelines(req: Request, res: Response) {
+    const sort = (req.query.sort as string) === "desc" ? "desc" : "asc";
+    const rows = await queries.getAllPipelines(sort);
     res.json({ data: rows });
 }
 
