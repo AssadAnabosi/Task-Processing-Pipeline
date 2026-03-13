@@ -10,6 +10,7 @@ export const subscribers = pgTable("subscribers", {
         .notNull()
         .references(() => pipelinesTable.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
+    secret: text("secret").notNull(),
     created_at: timestamp("created_at").defaultNow(),
     updated_at: timestamp("updated_at").defaultNow(),
 });

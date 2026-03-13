@@ -4,7 +4,7 @@ import { createJob } from "@db/queries/jobs";
 import { UnauthorizedError } from "@util/responseErrors";
 import { ACCEPTED } from "@util/constants/statusCodes";
 import { getPipelineBySourcePath } from "@db/queries/pipelines";
-import validateSignature from "@util/validateSignature";
+import { validateSignature } from "@root/util/webhookSignature";
 
 export async function handlePipelineWebhook(req: Request, res: Response) {
     const signature = req.headers["x-pipeline-signature"] as string | undefined;
@@ -20,9 +20,7 @@ export async function handlePipelineWebhook(req: Request, res: Response) {
         throw new UnauthorizedError("Not Authorized");
     }
 
-    if (
-        !validateSignature(signature, pipeline.secret, JSON.stringify(req.body))
-    ) {
+    if (!validateSignature(signature, pipeline.secret, req.body)) {
         throw new UnauthorizedError("Not Authorized");
     }
 
