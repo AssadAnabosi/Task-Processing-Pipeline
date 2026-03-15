@@ -19,7 +19,7 @@ const allowedStatuses = [
     "completed",
 ] as const;
 
-export type AllowedStatus = (typeof allowedStatuses)[number];
+export type JobStatus = (typeof allowedStatuses)[number];
 
 export const jobs = pgTable(
     "jobs",
