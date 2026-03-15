@@ -17,5 +17,13 @@ services:
             timeout: 5s
             retries: 5
 
+    redis:
+        container_name: redis
+        image: redis:7-alpine
+
+        restart: always
+        ports:
+            - "6379:6379"
+
 volumes:
     pgdata:
