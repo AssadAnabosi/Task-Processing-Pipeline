@@ -3,11 +3,13 @@ import { startPollingWorker } from "../polling";
 import { generateSignature } from "@util/webhookSignature";
 
 import {
-    claimProcessedJobs,
+    claimJobsForDelivery,
     getSubscribersByPipelineId,
+    incrementJobTotalDeliveries,
     logDeliveryAttempt,
     markJobCompleted,
     markJobDeliveryFailed,
+    updateJobSubscriberCount,
 } from "./queries";
 
 const POLL_INTERVAL_MS = 5_000;
@@ -130,6 +132,8 @@ async function deliverToSubscriber(
             scheduledFor,
         });
 
+        await incrementJobTotalDeliveries(job.id);
+
         if (attempt.ok) {
             return;
         }
@@ -152,6 +156,8 @@ async function deliverToSubscribers(
 async function deliverJob(job: Job): Promise<void> {
     const subscribers = await getSubscribersByPipelineId(job.pipeline_id);
 
+    await updateJobSubscriberCount(job.id, subscribers.length);
+
     if (subscribers.length === 0) {
         console.log(
             `[delivery] no subscribers for pipeline ${job.pipeline_id}`
@@ -166,7 +172,7 @@ async function deliverJob(job: Job): Promise<void> {
 }
 
 async function runBatch(): Promise<void> {
-    const claimed = await claimProcessedJobs(BATCH_SIZE);
+    const claimed = await claimJobsForDelivery(BATCH_SIZE);
     if (claimed.length === 0) return;
 
     console.log(`[delivery] claimed ${claimed.length} job(s)`);

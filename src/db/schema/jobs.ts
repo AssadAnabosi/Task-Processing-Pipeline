@@ -6,6 +6,7 @@ import {
     jsonb,
     integer,
     check,
+    index,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { pipelines as pipelinesTable } from "./pipeline";
@@ -38,6 +39,8 @@ export const jobs = pgTable(
             .notNull()
             .default(sql`'{}'::jsonb`),
         retry_count: integer("retry_count").notNull().default(0),
+        subscriber_count: integer("subscriber_count"),
+        total_deliveries: integer("total_deliveries").notNull().default(0),
         completed_at: timestamp("completed_at"),
         created_at: timestamp("created_at").defaultNow(),
         updated_at: timestamp("updated_at").defaultNow(),
@@ -49,6 +52,16 @@ export const jobs = pgTable(
                 allowedStatuses.map((s) => `'${s}'`).join(", ")
             )})`
         ),
+        // Partial indexes for high-frequency status-based lookups
+        index("idx_jobs_pending")
+            .on(table.created_at)
+            .where(sql`${table.status} = 'pending'`),
+        index("idx_jobs_processed")
+            .on(table.updated_at)
+            .where(sql`${table.status} = 'processed'`),
+        index("idx_jobs_processing_failed")
+            .on(table.updated_at)
+            .where(sql`${table.status} = 'processing-failed'`),
     ]
 );
 
