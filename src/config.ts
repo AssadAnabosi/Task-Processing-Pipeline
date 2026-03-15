@@ -18,7 +18,11 @@ type DBConfig = {
     migrationConfig: MigrationConfig;
 };
 
-const config: { api: APIConfig; db: DBConfig } = {
+type RedisConfig = {
+    url: string;
+};
+
+const config: { api: APIConfig; db: DBConfig; redis: RedisConfig } = {
     api: {
         port: parseInt(envOrThrow("PORT"), 10),
         platform: process.env.NODE_ENV || "development",
@@ -28,6 +32,9 @@ const config: { api: APIConfig; db: DBConfig } = {
         migrationConfig: {
             migrationsFolder: "./drizzle/migrations",
         },
+    },
+    redis: {
+        url: envOrThrow("REDIS_URL"),
     },
 };
 
