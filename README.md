@@ -371,17 +371,19 @@ The system is split into API, persistence, and worker responsibilities.
 
 1. A client creates a pipeline and registers subscribers.
 2. An external system sends a signed webhook to `/api/v1/webhooks/pipelines/:slug`.
-3. The API verifies the signature and stores the payload as a `pending` job.
-4. The processor worker claims pending jobs in batches and applies the pipeline action.
-5. The processor stores the action output in `jobs.result` and marks the job as `processed`.
-6. The delivery worker claims processed jobs, sends the payload to every subscriber, logs each delivery attempt, and marks the job as `completed` or `delivery-failed`.
+3. The API verifies the signature, stores the payload as a `pending` job, and enqueues a processor task in BullMQ.
+4. The processor worker consumes BullMQ tasks, atomically claims pending jobs in Postgres, and applies the pipeline action.
+5. The processor stores the action output in `jobs.result`, marks the job as `processed`, then enqueues a delivery seed task in BullMQ.
+6. The delivery worker fans out one BullMQ task per subscriber, retries only the failed subscriber task, logs every attempt, and marks the parent job as `completed` or `delivery-failed`.
 
 ### Worker model
 
 - `processor` worker handles business transformation of the webhook payload
-- `delivery` worker handles outbound fan-out and retry logic
-- both workers use the same polling abstraction in `src/workers/polling.ts`
-- job claiming uses database locking semantics to avoid duplicate processing across worker instances
+- `delivery` worker handles outbound fan-out and per-subscriber retry logic
+- both workers are event-driven via BullMQ (no interval polling loop)
+- BullMQ uses the existing Redis deployment as the queue backend
+- Postgres remains the source of truth for job state and audit records
+- processor-side job claiming still uses SQL locking semantics to avoid duplicate processing across worker instances
 
 ### Processing model
 
@@ -403,13 +405,21 @@ The project uses Bun for application startup and local development scripts. This
 
 Jobs, pipelines, subscribers, and delivery attempts are persisted in PostgreSQL. This provides durable workflow state and makes retries and auditing straightforward.
 
-### Redis for rate-limiting support
+### BullMQ on top of existing Redis
 
-Redis is included for rate-limiting and shared operational concerns where in-memory process state would not be enough in a multi-instance deployment.
+The system now uses BullMQ for processor and delivery orchestration, backed by the Redis instance already required by the service. This avoided introducing a second broker and let us reuse existing operational tooling and infrastructure.
 
-### Database-driven queue semantics
+### Event-driven workers instead of polling
 
-Jobs move through explicit statuses in the database instead of relying on an external queue broker. That keeps the system operationally smaller, while still allowing concurrency-safe claiming with SQL locking.
+Workers no longer wake up on fixed intervals to scan for work. They consume queue events immediately, which reduces idle DB load and shortens webhook-to-processing latency.
+
+### Hybrid queue + database state model
+
+BullMQ controls dispatch, delay, and retry timing, while Postgres remains the durable source of truth for workflow status and delivery history. This combines low-latency worker wakeups with strong auditability.
+
+### Subscriber-level delivery retries
+
+Delivery is modeled as one queue task per subscriber. A failing subscriber retries independently, so successful subscribers are not re-delivered on every retry cycle.
 
 ### Validation at the API boundary
 

@@ -5,6 +5,7 @@
 //   bun src/workers/run.ts processor      → starts the processor worker only
 //   bun src/workers/run.ts delivery       → starts the delivery worker only
 
+import type { Worker } from "bullmq";
 import { startProcessor } from "./processor";
 import { startDelivery } from "./delivery";
 
@@ -17,6 +18,8 @@ type WorkerName = keyof typeof workers;
 
 const arg = process.argv[2] as WorkerName | undefined;
 
+const activeWorkers: Worker[] = [];
+
 if (arg) {
     if (!(arg in workers)) {
         console.error(
@@ -24,7 +27,16 @@ if (arg) {
         );
         process.exit(1);
     }
-    workers[arg]();
+    activeWorkers.push(workers[arg]());
 } else {
-    Object.values(workers).forEach((start) => start());
+    Object.values(workers).forEach((start) => activeWorkers.push(start()));
 }
+
+async function shutdown(signal: string): Promise<void> {
+    console.log(`[workers] received ${signal}, shutting down gracefully…`);
+    await Promise.all(activeWorkers.map((w) => w.close()));
+    process.exit(0);
+}
+
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));

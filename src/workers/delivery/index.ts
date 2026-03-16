@@ -1,9 +1,19 @@
 import type { Job, Subscriber } from "@db/schema";
-import { startPollingWorker } from "../polling";
+import { Worker } from "bullmq";
+import {
+    connection,
+    DELIVERY_QUEUE_NAME,
+    deliveryQueue,
+    DELIVERY_MAX_ATTEMPTS,
+    DELIVERY_RETRY_BASE_DELAY_MS,
+} from "../queues";
 import { generateSignature } from "@util/webhookSignature";
 
 import {
-    claimJobsForDelivery,
+    claimJobForDeliveryById,
+    completeJobIfAllSubscribersDelivered,
+    getDeliveryReadyJobIds,
+    getSubscriberById,
     getSubscribersByPipelineId,
     incrementJobTotalDeliveries,
     logDeliveryAttempt,
@@ -12,12 +22,7 @@ import {
     updateJobSubscriberCount,
 } from "./queries";
 
-const POLL_INTERVAL_MS = 5_000;
-const BATCH_SIZE = 5;
 const DELIVERY_SIGNATURE_HEADER = "x-delivery-sign";
-const MAX_DELIVERY_ATTEMPTS = 5;
-const RETRY_BASE_DELAY_MS = 500;
-const RETRY_MAX_JITTER_MS = 750;
 
 function buildDeliveryPayload(job: Job) {
     return {
@@ -26,16 +31,6 @@ function buildDeliveryPayload(job: Job) {
         payload: job.payload,
         result: job.result,
     };
-}
-
-function sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getRetryDelayMs(attemptNumber: number): number {
-    const exponentialBackoff = RETRY_BASE_DELAY_MS * 2 ** (attemptNumber - 1);
-    const jitter = Math.floor(Math.random() * RETRY_MAX_JITTER_MS);
-    return exponentialBackoff + jitter;
 }
 
 async function readResponseBody(
@@ -104,56 +99,41 @@ async function sendDeliveryRequest(
     }
 }
 
+// Attempt delivery to a single subscriber once. Throws on failure so BullMQ
+// can schedule the next retry — no sleep() required in application code.
 async function deliverToSubscriber(
     job: Job,
-    subscriber: Subscriber
+    subscriber: Subscriber,
+    attemptNumber: number
 ): Promise<void> {
-    for (
-        let attemptNumber = 1;
-        attemptNumber <= MAX_DELIVERY_ATTEMPTS;
-        attemptNumber++
-    ) {
-        if (attemptNumber > 1) {
-            const delayMs = getRetryDelayMs(attemptNumber - 1);
-            await sleep(delayMs);
-        }
+    const scheduledFor = new Date();
+    const attempt = await sendDeliveryRequest(job, subscriber);
 
-        const scheduledFor = new Date();
-        const attempt = await sendDeliveryRequest(job, subscriber);
+    await logDeliveryAttempt({
+        jobId: job.id,
+        subscriberId: subscriber.id,
+        attemptNumber,
+        status: attempt.ok ? "delivered" : "failed",
+        responseStatus: attempt.responseStatus,
+        responseBody: attempt.responseBody,
+        error: attempt.error,
+        scheduledFor,
+    });
 
-        await logDeliveryAttempt({
-            jobId: job.id,
-            subscriberId: subscriber.id,
-            attemptNumber,
-            status: attempt.ok ? "delivered" : "failed",
-            responseStatus: attempt.responseStatus,
-            responseBody: attempt.responseBody,
-            error: attempt.error,
-            scheduledFor,
-        });
+    await incrementJobTotalDeliveries(job.id);
 
-        await incrementJobTotalDeliveries(job.id);
-
-        if (attempt.ok) {
-            return;
-        }
-    }
-
-    throw new Error(
-        `subscriber ${subscriber.id} failed delivery after ${MAX_DELIVERY_ATTEMPTS} attempts`
-    );
-}
-
-async function deliverToSubscribers(
-    job: Job,
-    subscribers: Subscriber[]
-): Promise<void> {
-    for (const subscriber of subscribers) {
-        await deliverToSubscriber(job, subscriber);
+    if (!attempt.ok || attempt.responseStatus !== 200) {
+        const msg = `subscriber ${subscriber.id} failed delivery: ${attempt.error}`;
+        throw new Error(msg);
     }
 }
 
-async function deliverJob(job: Job): Promise<void> {
+type DeliveryQueuePayload = {
+    jobId: string;
+    subscriberId?: string;
+};
+
+async function enqueueSubscriberDeliveryJobs(job: Job): Promise<void> {
     const subscribers = await getSubscribersByPipelineId(job.pipeline_id);
 
     await updateJobSubscriberCount(job.id, subscribers.length);
@@ -166,35 +146,116 @@ async function deliverJob(job: Job): Promise<void> {
         return;
     }
 
-    await deliverToSubscribers(job, subscribers);
-
-    await markJobCompleted(job.id);
-}
-
-async function runBatch(): Promise<void> {
-    const claimed = await claimJobsForDelivery(BATCH_SIZE);
-    if (claimed.length === 0) return;
-
-    console.log(`[delivery] claimed ${claimed.length} job(s)`);
-
-    await Promise.allSettled(
-        claimed.map(async (job) => {
-            try {
-                await deliverJob(job);
-                console.log(`[delivery] delivered job ${job.id}`);
-            } catch (err) {
-                console.error(`[delivery] job ${job.id} delivery failed:`, err);
-                await markJobDeliveryFailed(job.id);
-            }
-        })
+    await Promise.all(
+        subscribers.map((subscriber) =>
+            deliveryQueue.add(
+                "deliver",
+                { jobId: job.id, subscriberId: subscriber.id },
+                {
+                    jobId: `deliver-${job.id}-${subscriber.id}`,
+                    attempts: DELIVERY_MAX_ATTEMPTS,
+                    backoff: {
+                        type: "exponential",
+                        delay: DELIVERY_RETRY_BASE_DELAY_MS,
+                    },
+                }
+            )
+        )
     );
 }
 
-export function startDelivery(): void {
-    startPollingWorker({
-        workerName: "delivery",
-        pollIntervalMs: POLL_INTERVAL_MS,
-        batchSize: BATCH_SIZE,
-        runBatch,
+export function startDelivery(): Worker {
+    const worker = new Worker(
+        DELIVERY_QUEUE_NAME,
+        async (bqJob: { data: DeliveryQueuePayload; attemptsMade: number }) => {
+            const { jobId, subscriberId } = bqJob.data;
+            // BullMQ is 0-indexed; map to 1-indexed for human-readable logs.
+            const attemptNumber = bqJob.attemptsMade + 1;
+
+            // Verify the parent job is still deliverable.
+            const job = await claimJobForDeliveryById(jobId);
+
+            // Job already moved to a terminal state (completed/failed), safe to skip.
+            if (!job) return;
+
+            // Seed job: fan out one queue job per subscriber.
+            if (!subscriberId) {
+                await enqueueSubscriberDeliveryJobs(job);
+                return;
+            }
+
+            const subscriber = await getSubscriberById(subscriberId);
+            if (!subscriber || subscriber.pipeline_id !== job.pipeline_id) {
+                throw new Error(
+                    `subscriber ${subscriberId} not found for pipeline ${job.pipeline_id}`
+                );
+            }
+
+            // Throws on failure → BullMQ retries THIS subscriber job only.
+            await deliverToSubscriber(job, subscriber, attemptNumber);
+            await completeJobIfAllSubscribersDelivered(job.id);
+            console.log(
+                `[delivery] delivered job ${job.id} to subscriber ${subscriber.id} (attempt ${attemptNumber})`
+            );
+        },
+        { connection, concurrency: 5 }
+    );
+
+    // 'failed' fires after EVERY failed attempt, including intermediate ones.
+    // We only write to the DB when all attempts are exhausted.
+    worker.on("failed", async (bqJob, err) => {
+        if (!bqJob) return;
+
+        const maxAttempts = bqJob.opts.attempts ?? 1;
+        const exhausted = bqJob.attemptsMade >= maxAttempts;
+
+        if (exhausted) {
+            console.error(
+                `[delivery] job ${bqJob.data.jobId} permanently failed after ${bqJob.attemptsMade} attempt(s):`,
+                err.message
+            );
+            await markJobDeliveryFailed(bqJob.data.jobId as string);
+        } else {
+            console.warn(
+                `[delivery] job ${bqJob.data.jobId} attempt ${bqJob.attemptsMade} failed, will retry:`,
+                err.message
+            );
+        }
     });
+
+    worker.on("error", (err) => {
+        console.error("[delivery] worker error:", err.message);
+    });
+
+    // Recover 'processed' and 'processing-failed' jobs that are in the DB but
+    // absent from the delivery queue (e.g. crash between markJobProcessed and
+    // the deliveryQueue.add call in the processor worker).
+    // Already-queued jobs are silently ignored thanks to the idempotent jobId.
+    getDeliveryReadyJobIds()
+        .then((ids) => {
+            if (ids.length === 0) return;
+            console.log(
+                `[delivery] recovering ${ids.length} job(s) missed from delivery queue`
+            );
+            return Promise.all(
+                ids.map((id) =>
+                    deliveryQueue.add(
+                        "deliver",
+                        { jobId: id },
+                        {
+                            // Seed jobs fan out to subscriber-level jobs.
+                            jobId: `deliver-seed-${id}`,
+                        }
+                    )
+                )
+            );
+        })
+        .catch((err) =>
+            console.error("[delivery] startup recovery failed:", err)
+        );
+
+    console.log(
+        `[delivery] started — listening for jobs via BullMQ (max ${DELIVERY_MAX_ATTEMPTS} attempts, exponential backoff from ${DELIVERY_RETRY_BASE_DELAY_MS}ms)`
+    );
+    return worker;
 }

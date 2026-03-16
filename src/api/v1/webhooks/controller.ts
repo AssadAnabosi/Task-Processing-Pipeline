@@ -1,5 +1,6 @@
 import { type Request, type Response } from "express";
 import { createJob } from "@db/queries/jobs";
+import { processorQueue } from "@workers/queues";
 
 import { BadRequestError, UnauthorizedError } from "@util/responseErrors";
 import { ACCEPTED } from "@util/constants/statusCodes";
@@ -39,6 +40,18 @@ export async function handlePipelineWebhook(req: Request, res: Response) {
         pipeline_id: pipeline.id,
         payload: parsedPayload,
     });
+
+    const createdJob = job[0];
+    if (createdJob) {
+        // Push the job ID into the BullMQ processor queue so the worker wakes up
+        // immediately instead of waiting for the next poll interval.
+        // jobId makes this idempotent — a duplicate enqueue is silently ignored.
+        await processorQueue.add(
+            "process",
+            { jobId: createdJob.id },
+            { jobId: `process-${createdJob.id}` }
+        );
+    }
 
     return res.status(ACCEPTED).json({
         message: "Webhook received and job created successfully",
