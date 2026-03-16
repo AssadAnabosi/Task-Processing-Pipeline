@@ -134,6 +134,9 @@ type DeliveryQueuePayload = {
 };
 
 async function enqueueSubscriberDeliveryJobs(job: Job): Promise<void> {
+    // SIMULATION: LONG RUNNING CPU-INTENSIVE TASK
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+
     const subscribers = await getSubscribersByPipelineId(job.pipeline_id);
 
     await updateJobSubscriberCount(job.id, subscribers.length);

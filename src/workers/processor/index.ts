@@ -25,6 +25,9 @@ type JobWithAction = Job & {
 async function processJob(
     job: JobWithAction
 ): Promise<Record<string, unknown>> {
+    // SIMULATION: LONG RUNNING CPU-INTENSIVE TASK
+    await new Promise((resolve) => setTimeout(resolve, 2500));
+
     const actionResult = executePipelineAction(
         job.action_type,
         job.action_config,
