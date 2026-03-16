@@ -386,6 +386,36 @@ Example request body:
 }
 ```
 
+### Jobs Metrics
+
+#### `GET /api/v1/metrics/jobs`
+
+Returns metrics for all jobs.
+
+```json
+{
+  "grouped_counts": [
+    {
+      "status": "completed",
+      "count": 120,
+      "mismatch": 5
+    },
+    {
+      "status": "delivery-failed",
+      "count": 30,
+      "mismatch": 3
+    },
+    {
+      "status": "processing-failed",
+      "count": 10,
+      "mismatch": 0
+    }
+  ],
+  "mismatched_completed": 5,
+  "mismatched_delivery_failed": 3
+}
+```
+
 ## Architecture
 
 The system is split into API, persistence, and worker responsibilities.
