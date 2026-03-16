@@ -1,0 +1,20 @@
+{
+    "mode": "all",
+    "conditions": [
+        {
+            "field": "attempts",
+            "operator": "gte",
+            "value": 2
+        },
+        {
+            "field": "tags",
+            "operator": "contains",
+            "value": "priority"
+        },
+        {
+            "field": "status",
+            "operator": "in",
+            "value": ["queued", "pending"]
+        }
+    ]
+}

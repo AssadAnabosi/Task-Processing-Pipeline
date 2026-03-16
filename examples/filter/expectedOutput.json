@@ -1,0 +1,13 @@
+{
+    "output_payload": {
+        "status": "queued",
+        "attempts": 2,
+        "tags": ["billing", "priority"]
+    },
+    "metadata": {
+        "action_type": "filter",
+        "mode": "all",
+        "conditions_count": 3,
+        "passed": true
+    }
+}

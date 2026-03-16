@@ -2,10 +2,14 @@ import db from "@db/index";
 import { jobs, type JobInsert } from "@db/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
-export async function getAllJobs(sort: "asc" | "desc" = "desc") {
+export async function getAllJobsByPipelineId(
+    pipelineId: string,
+    sort: "asc" | "desc" = "desc"
+) {
     return await db
         .select()
         .from(jobs)
+        .where(eq(jobs.pipeline_id, pipelineId))
         .orderBy(sort === "asc" ? asc(jobs.updated_at) : desc(jobs.updated_at));
 }
 

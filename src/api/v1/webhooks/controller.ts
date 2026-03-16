@@ -1,7 +1,7 @@
 import { type Request, type Response } from "express";
 import { createJob } from "@db/queries/jobs";
 
-import { UnauthorizedError } from "@util/responseErrors";
+import { BadRequestError, UnauthorizedError } from "@util/responseErrors";
 import { ACCEPTED } from "@util/constants/statusCodes";
 import { getPipelineBySourcePath } from "@db/queries/pipelines";
 import { validateSignature } from "@root/util/webhookSignature";
@@ -20,13 +20,24 @@ export async function handlePipelineWebhook(req: Request, res: Response) {
         throw new UnauthorizedError("Not Authorized");
     }
 
-    if (!validateSignature(signature, pipeline.secret, req.body)) {
+    const rawPayload = Buffer.isBuffer(req.body)
+        ? req.body.toString("utf8")
+        : JSON.stringify(req.body ?? {});
+
+    if (!validateSignature(signature, pipeline.secret, rawPayload)) {
         throw new UnauthorizedError("Not Authorized");
+    }
+
+    let parsedPayload: unknown;
+    try {
+        parsedPayload = JSON.parse(rawPayload);
+    } catch {
+        throw new BadRequestError("Invalid JSON payload");
     }
 
     const job = await createJob({
         pipeline_id: pipeline.id,
-        payload: req.body,
+        payload: parsedPayload,
     });
 
     return res.status(ACCEPTED).json({

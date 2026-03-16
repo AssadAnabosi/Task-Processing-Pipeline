@@ -5,7 +5,7 @@ import deliveryAttemptsRouter from "./delivery-attempts";
 
 const router = Router({ mergeParams: true });
 
-router.route("/").get(controller.getJobs);
+router.route("/").get(controller.getJobsByPipelineId);
 
 const base = "/:jobId";
 

@@ -15,9 +15,10 @@ export function generateSignature(secret: string, stringifiedPayload: string) {
 export function validateSignature(
     receivedSignature: string,
     secret: string,
-    payload: Record<string, unknown>
+    payload: Record<string, unknown> | string
 ) {
-    const stringifiedPayload = JSON.stringify(payload);
+    const stringifiedPayload =
+        typeof payload === "string" ? payload : JSON.stringify(payload);
     const expectedSignature = generateSignature(secret, stringifiedPayload);
     return receivedSignature === expectedSignature;
 }

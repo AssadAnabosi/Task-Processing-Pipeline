@@ -2,9 +2,12 @@ import { type Request, type Response } from "express";
 import * as queries from "@db/queries/jobs";
 import { NotFoundError } from "@util/responseErrors";
 
-export async function getJobs(req: Request, res: Response) {
+export async function getJobsByPipelineId(req: Request, res: Response) {
     const sort = (req.query.sort as string) === "asc" ? "asc" : "desc";
-    const rows = await queries.getAllJobs(sort);
+    const rows = await queries.getAllJobsByPipelineId(
+        req.params.pipelineId as string,
+        sort
+    );
     res.json({ data: rows });
 }
 

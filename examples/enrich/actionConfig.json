@@ -1,0 +1,8 @@
+{
+    "fields": {
+        "priority": "high",
+        "source": "api",
+        "retryable": true
+    },
+    "overwrite_existing": false
+}
