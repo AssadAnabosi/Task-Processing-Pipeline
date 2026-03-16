@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as controller from "./controller";
 import { validateBody } from "@middleware/validateBody";
+import validUUID from "@middleware/validUUID";
 import { createSubscriberSchema, updateSubscriberSchema } from "./schemas";
 
 const router = Router({ mergeParams: true });
@@ -12,6 +13,7 @@ router
 
 const base = "/:subscriberId";
 
+router.use(base, validUUID("subscriberId"));
 router
     .route(base)
     .get(controller.getSubscriberById)

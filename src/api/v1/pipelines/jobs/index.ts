@@ -2,12 +2,14 @@ import { Router } from "express";
 import * as controller from "./controller";
 
 import deliveryAttemptsRouter from "./delivery-attempts";
+import validUUID from "@middleware/validUUID";
 
 const router = Router({ mergeParams: true });
 
 router.route("/").get(controller.getJobsByPipelineId);
 
 const base = "/:jobId";
+router.use(base, validUUID("jobId"));
 
 router.route(base).get(controller.getJobById);
 

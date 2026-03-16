@@ -7,7 +7,7 @@ import {
     parseActionConfig,
     transformActionConfigSchema,
     type PipelineActionType,
-} from "@root/util/pipelines/actionConfig";
+} from "@util/pipelines/actionConfig";
 
 // Derived directly from the Drizzle table — no duplication.
 // Strips server-managed fields (id, created_at, updated_at).

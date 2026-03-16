@@ -5,7 +5,7 @@ import { processorQueue } from "@workers/queues";
 import { BadRequestError, UnauthorizedError } from "@util/responseErrors";
 import { ACCEPTED } from "@util/constants/statusCodes";
 import { getPipelineBySourcePath } from "@db/queries/pipelines";
-import { validateSignature } from "@root/util/webhookSignature";
+import { validateSignature } from "@util/webhookSignature";
 
 export async function handlePipelineWebhook(req: Request, res: Response) {
     const signature = req.headers["x-pipeline-signature"] as string | undefined;
