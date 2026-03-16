@@ -13,12 +13,14 @@ import { startAllWorkers } from "./workers";
 
 async function main() {
     // Run database migrations before starting the server
-    try {
-        const migrationClient = postgres(config.db.url, { max: 1 });
-        await migrate(drizzle(migrationClient), config.db.migrationConfig);
-    } catch (err) {
-        console.error("Database migration failed:", err);
-        process.exit(1);
+    if (config.api.platform == "development") {
+        try {
+            const migrationClient = postgres(config.db.url, { max: 1 });
+            await migrate(drizzle(migrationClient), config.db.migrationConfig);
+        } catch (err) {
+            console.error("Database migration failed:", err);
+            process.exit(1);
+        }
     }
 
     startAllWorkers();
