@@ -1,8 +1,36 @@
 import { type Request, type Response } from "express";
 import * as queries from "@db/queries/pipelines";
 import { CREATED, NO_CONTENT } from "@util/constants/statusCodes";
-import { NotFoundError } from "@util/responseErrors";
+import { ConflictError, NotFoundError } from "@util/responseErrors";
 import { type CreatePipelineBody, type UpdatePipelineBody } from "./schemas";
+
+type PostgresConstraintError = {
+    code?: string;
+    // postgres drivers and wrappers use different names for the constraint field
+    constraint_name?: string;
+    constraint?: string;
+    constraintName?: string;
+};
+
+function rethrowSourcePathConflict(error: unknown): never {
+    // unwrap common wrappers (Drizzle wraps the original error)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = (error as any)?.cause ?? (error as any)?.originalError ?? error;
+    const postgresError = e as PostgresConstraintError;
+
+    const code = postgresError.code;
+    const constraint =
+        postgresError.constraint_name ??
+        postgresError.constraint ??
+        postgresError.constraintName;
+
+    // 23505 is the code for unique violation in Postgres
+    if (code === "23505" && constraint === "pipelines_source_path_unique") {
+        throw new ConflictError("source_path is already taken");
+    }
+
+    throw error;
+}
 
 export async function getPipelines(req: Request, res: Response) {
     const sort = (req.query.sort as string) === "desc" ? "desc" : "asc";
@@ -14,7 +42,14 @@ export async function postPipeline(
     req: Request<Record<string, never>, unknown, CreatePipelineBody>,
     res: Response
 ) {
-    const created = await queries.createPipeline(req.body);
+    let created;
+
+    try {
+        created = await queries.createPipeline(req.body);
+    } catch (error) {
+        rethrowSourcePathConflict(error);
+    }
+
     res.status(CREATED).json({ data: created });
 }
 
@@ -27,7 +62,14 @@ export async function updatePipeline(
     res: Response
 ) {
     const { pipelineId } = req.params;
-    const updated = await queries.updatePipelineById(pipelineId, req.body);
+    let updated;
+
+    try {
+        updated = await queries.updatePipelineById(pipelineId, req.body);
+    } catch (error) {
+        rethrowSourcePathConflict(error);
+    }
+
     if (!updated) throw new NotFoundError("Pipeline not found");
     res.json({ data: updated });
 }

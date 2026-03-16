@@ -1,5 +1,6 @@
 import {
     BAD_REQUEST,
+    CONFLICT,
     NOT_AUTHENTICATED,
     NOT_AUTHORIZED,
     NOT_FOUND,
@@ -66,6 +67,18 @@ export class NotFoundError extends AppError {
         super(message);
         this.name = "NotFoundError";
         Object.setPrototypeOf(this, NotFoundError.prototype);
+    }
+    toJSON() {
+        return { error: this.message };
+    }
+}
+
+export class ConflictError extends AppError {
+    readonly statusCode = CONFLICT;
+    constructor(message: string) {
+        super(message);
+        this.name = "ConflictError";
+        Object.setPrototypeOf(this, ConflictError.prototype);
     }
     toJSON() {
         return { error: this.message };

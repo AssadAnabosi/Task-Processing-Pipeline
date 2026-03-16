@@ -2,7 +2,7 @@ import { Router } from "express";
 import * as controller from "./controller";
 
 import validUUID from "@middleware/validUUID";
-import validateRowExistence from "@root/middleware/validateRowExistence";
+import validateRowExistence from "@middleware/validateRowExistence";
 import { jobs } from "@db/schema";
 
 import deliveryAttemptsRouter from "./delivery-attempts";
