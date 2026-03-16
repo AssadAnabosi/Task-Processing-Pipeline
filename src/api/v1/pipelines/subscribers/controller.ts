@@ -1,7 +1,7 @@
 import { type Request, type Response } from "express";
 import * as queries from "@db/queries/subscribers";
 import { CREATED, NO_CONTENT } from "@util/constants/statusCodes";
-import { NotFoundError } from "@util/responseErrors";
+
 import {
     type CreateSubscriberBody,
     type UpdateSubscriberBody,
@@ -28,16 +28,8 @@ export async function postSubscriber(
     res.status(CREATED).json({ data: created });
 }
 
-export async function getSubscriberById(
-    req: Request<{ subscriberId: string }, unknown, unknown>,
-    res: Response
-) {
-    const subscriberId = req.params.subscriberId as string;
-    const row = await queries.getSubscriberById(subscriberId);
-    if (!row) {
-        throw new NotFoundError("Subscriber not found");
-    }
-    res.json({ data: row });
+export async function getSubscriberById(_req: Request, res: Response) {
+    res.json({ data: res.locals.subscriber });
 }
 
 export async function updateSubscriber(

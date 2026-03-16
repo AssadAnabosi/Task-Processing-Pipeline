@@ -18,11 +18,8 @@ export async function postPipeline(
     res.status(CREATED).json({ data: created });
 }
 
-export async function getPipelineById(req: Request, res: Response) {
-    const pipelineId = req.params.pipelineId as string;
-    const row = await queries.getPipelineById(pipelineId);
-    if (!row) throw new NotFoundError("Pipeline not found");
-    res.json({ data: row });
+export async function getPipelineById(_req: Request, res: Response) {
+    res.json({ data: res.locals.pipeline });
 }
 
 export async function updatePipeline(

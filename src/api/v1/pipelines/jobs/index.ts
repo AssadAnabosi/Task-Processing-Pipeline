@@ -1,15 +1,22 @@
 import { Router } from "express";
 import * as controller from "./controller";
 
-import deliveryAttemptsRouter from "./delivery-attempts";
 import validUUID from "@middleware/validUUID";
+import validateRowExistence from "@root/middleware/validateRowExistence";
+import { jobs } from "@db/schema";
+
+import deliveryAttemptsRouter from "./delivery-attempts";
 
 const router = Router({ mergeParams: true });
 
 router.route("/").get(controller.getJobsByPipelineId);
 
 const base = "/:jobId";
-router.use(base, validUUID("jobId"));
+router.use(
+    base,
+    validUUID("jobId"),
+    validateRowExistence(jobs, "jobId", "id", "job")
+);
 
 router.route(base).get(controller.getJobById);
 
