@@ -1,10 +1,21 @@
+import { Worker } from "bullmq";
 import type { Job } from "@db/schema";
-import { startPollingWorker } from "../polling";
-import { claimJobs, markJobFailed, markJobProcessed } from "./queries";
+import {
+    connection,
+    processorQueue,
+    deliveryQueue,
+    PROCESSOR_QUEUE_NAME,
+    DELIVERY_MAX_ATTEMPTS,
+    DELIVERY_RETRY_BASE_DELAY_MS,
+} from "../queues";
+import {
+    claimJobById,
+    getPendingJobIds,
+    markJobFailed,
+    markJobProcessed,
+    MAX_RETRIES,
+} from "./queries";
 import { executePipelineAction } from "./actions";
-
-const POLL_INTERVAL_MS = 5_000;
-const BATCH_SIZE = 5;
 
 type JobWithAction = Job & {
     action_type: "transform" | "filter" | "enrich";
@@ -30,35 +41,97 @@ async function processJob(
     };
 }
 
-async function runBatch(): Promise<void> {
-    const claimed = await claimJobs(BATCH_SIZE);
-    if (claimed.length === 0) return;
+// How long to wait before retrying a failed processor job (exponential, in ms).
+function processorRetryDelayMs(retryCount: number): number {
+    return 1_000 * 2 ** retryCount; // 1 s, 2 s, 4 s
+}
 
-    console.log(`[processor] claimed ${claimed.length} job(s)`);
+export function startProcessor(): Worker {
+    const worker = new Worker(
+        PROCESSOR_QUEUE_NAME,
+        async (bqJob) => {
+            const jobId = bqJob.data.jobId as string;
 
-    // Process the batch concurrently. allSettled ensures one job's
-    // failure never prevents the rest of the batch from completing.
-    await Promise.allSettled(
-        claimed.map(async (job) => {
+            // Atomically claim the DB row. Returns null when another worker
+            // already claimed it (SKIP LOCKED) or the status is wrong — both
+            // are safe to skip.
+            const job = await claimJobById(jobId);
+            if (!job) return;
+
             try {
-                const processingResult = await processJob(job);
-                await markJobProcessed(job.id, processingResult);
+                const result = await processJob(job);
+                await markJobProcessed(job.id, result);
+
+                // Hand off to the delivery queue. The jobId option makes this
+                // idempotent: a duplicate enqueue attempt is silently ignored.
+                await deliveryQueue.add(
+                    "deliver",
+                    { jobId: job.id },
+                    {
+                        jobId: `deliver-seed-${job.id}`,
+                        attempts: DELIVERY_MAX_ATTEMPTS,
+                        backoff: {
+                            type: "exponential",
+                            delay: DELIVERY_RETRY_BASE_DELAY_MS,
+                        },
+                    }
+                );
             } catch (err) {
                 console.error(
                     `[processor] job ${job.id} failed (retry_count=${job.retry_count}):`,
                     err
                 );
-                await markJobFailed(job.id, job.retry_count);
-            }
-        })
-    );
-}
 
-export function startProcessor(): void {
-    startPollingWorker({
-        workerName: "processor",
-        pollIntervalMs: POLL_INTERVAL_MS,
-        batchSize: BATCH_SIZE,
-        runBatch,
+                await markJobFailed(job.id, job.retry_count);
+
+                // If the DB still has retries budget, re-enqueue with backoff.
+                // markJobFailed already reset the status to 'pending'.
+                if (job.retry_count < MAX_RETRIES) {
+                    await processorQueue.add(
+                        "process",
+                        { jobId: job.id },
+                        {
+                            delay: processorRetryDelayMs(job.retry_count),
+                            // Unique ID per retry attempt prevents duplicate
+                            // entries if this code runs more than once.
+                            jobId: `process-${job.id}-retry-${job.retry_count + 1}`,
+                        }
+                    );
+                }
+            }
+            // We never throw here — retries are managed explicitly above so
+            // BullMQ treats every invocation as a successful completion.
+        },
+        { connection, concurrency: 5 }
+    );
+
+    worker.on("error", (err) => {
+        console.error("[processor] worker error:", err.message);
     });
+
+    // Recover any jobs that are 'pending' in the DB but absent from the queue.
+    // Runs in the background so worker startup is not blocked.
+    // add() is idempotent on jobId — already-queued jobs are silently ignored.
+    getPendingJobIds()
+        .then((ids) => {
+            if (ids.length === 0) return;
+            console.log(
+                `[processor] recovering ${ids.length} pending job(s) missed from queue`
+            );
+            return Promise.all(
+                ids.map((id) =>
+                    processorQueue.add(
+                        "process",
+                        { jobId: id },
+                        { jobId: `process-${id}` }
+                    )
+                )
+            );
+        })
+        .catch((err) =>
+            console.error("[processor] startup recovery failed:", err)
+        );
+
+    console.log("[processor] started — listening for jobs via BullMQ");
+    return worker;
 }

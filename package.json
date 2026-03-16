@@ -17,6 +17,7 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "bullmq": "^5.71.0",
     "drizzle-orm": "^0.45.1",
     "drizzle-zod": "^0.8.3",
     "express": "^5.2.1",

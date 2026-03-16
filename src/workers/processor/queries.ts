@@ -3,7 +3,7 @@ import { inArray, sql, eq } from "drizzle-orm";
 import { jobs, pipelines, type Job, type Pipeline } from "@db/schema";
 import { workerDb } from "../db";
 
-const MAX_RETRIES = 2;
+export const MAX_RETRIES = 2;
 
 export type ClaimedProcessorJob = Job & {
     action_type: Pipeline["action_type"];
@@ -61,6 +61,65 @@ export async function claimJobs(limit: number): Promise<ClaimedProcessorJob[]> {
                 action_config: pipeline.action_config,
             };
         });
+    });
+}
+
+// Return IDs of every job that is still 'pending' in the DB.
+// Used at worker startup to re-enqueue jobs that were written to the DB but
+// never made it into BullMQ (e.g. crash between createJob and queue.add).
+export async function getPendingJobIds(): Promise<string[]> {
+    const rows = await workerDb
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(sql`${jobs.status} = 'pending'`);
+    return rows.map((r) => r.id);
+}
+
+// Claim a single pending job by ID — used by the BullMQ worker which already
+// knows the exact job ID from the queue payload.
+export async function claimJobById(
+    id: string
+): Promise<ClaimedProcessorJob | null> {
+    return await workerDb.transaction(async (tx) => {
+        const rows = await tx.execute(sql`
+            SELECT id FROM jobs
+            WHERE id = ${id} AND status = 'pending'
+            FOR UPDATE SKIP LOCKED
+        `);
+
+        if (rows.length === 0) return null;
+
+        const updatedRows = await tx
+            .update(jobs)
+            .set({ status: "processing", updated_at: new Date() })
+            .where(eq(jobs.id, id))
+            .returning();
+
+        const updated = updatedRows[0];
+        if (!updated) return null;
+
+        const pipelineRows = await tx
+            .select({
+                id: pipelines.id,
+                action_type: pipelines.action_type,
+                action_config: pipelines.action_config,
+            })
+            .from(pipelines)
+            .where(eq(pipelines.id, updated.pipeline_id))
+            .limit(1);
+
+        const pipeline = pipelineRows[0];
+        if (!pipeline) {
+            throw new Error(
+                `[processor] Pipeline ${updated.pipeline_id} not found for job ${id}`
+            );
+        }
+
+        return {
+            ...updated,
+            action_type: pipeline.action_type,
+            action_config: pipeline.action_config,
+        };
     });
 }
 

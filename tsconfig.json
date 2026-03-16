@@ -16,7 +16,8 @@
             "@middleware/*": ["src/middleware/*"],
             "@util/*": ["src/util/*"],
             "@v1/*": ["src/api/v1/*"],
-            "@db/*": ["src/db/*"]
+            "@db/*": ["src/db/*"],
+            "@workers/*": ["src/workers/*"]
         },
         "allowImportingTsExtensions": true,
         "verbatimModuleSyntax": true,

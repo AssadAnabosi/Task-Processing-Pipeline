@@ -1,3 +1,6 @@
+// DEPRECATED - replaced by BullMQ workers that listen for new jobs instead of polling.
+// Kept for reference but not currently used.
+
 type PollingWorkerOptions = {
     workerName: string;
     pollIntervalMs: number;
