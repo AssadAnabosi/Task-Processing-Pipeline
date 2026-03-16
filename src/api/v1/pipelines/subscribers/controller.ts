@@ -7,7 +7,7 @@ import {
     type UpdateSubscriberBody,
 } from "./schemas";
 
-export async function getSubscribers(
+export async function getSubscribersByPipelineId(
     req: Request<{ pipelineId: string }, unknown, unknown>,
     res: Response
 ) {

@@ -7,7 +7,7 @@ const router = Router({ mergeParams: true });
 
 router
     .route("/")
-    .get(controller.getSubscribers)
+    .get(controller.getSubscribersByPipelineId)
     .post(validateBody(createSubscriberSchema), controller.postSubscriber);
 
 const base = "/:subscriberId";
