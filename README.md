@@ -23,14 +23,30 @@ docker compose up -d
 This starts:
 
 - Express API on `localhost:8001`
+- Processor worker service (BullMQ consumer for processing)
+- Delivery worker service (BullMQ consumer for fan-out delivery)
 - PostgreSQL on `localhost:5432`
 - Redis on `localhost:6379`
 
-The API service is configured to depend on healthy PostgreSQL and Redis containers before it starts.
+All application services depend on healthy PostgreSQL and Redis containers before startup.
+
+### Independent scaling
+
+Scale API and worker tiers independently based on traffic shape:
+
+```bash
+docker compose up -d --scale api=2 --scale worker-processor=2 --scale worker-delivery=8
+```
+
+Example strategy:
+
+- Increase `worker-delivery` for subscriber-heavy bursts.
+- Increase `worker-processor` for CPU-heavy action workloads.
+- Keep `api` focused on ingress and management endpoints.
 
 ### Run the application
 
-The API runs inside Docker Compose by default.
+API and workers run as separate services inside Docker Compose by default.
 
 To run it locally outside Docker:
 
@@ -47,6 +63,13 @@ bun run start
 ```
 
 The server runs database migrations on startup before accepting requests.
+
+Run workers independently when developing outside Docker:
+
+```bash
+bun run workers:processor
+bun run workers:delivery
+```
 
 ### Useful scripts
 

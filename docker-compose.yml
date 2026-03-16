@@ -1,9 +1,8 @@
 services:
-    app:
+    api:
         build:
             context: .
             dockerfile: Dockerfile
-        container_name: tpp-app
         restart: always
         env_file:
             - .env
@@ -29,6 +28,42 @@ services:
             interval: 10s
             timeout: 5s
             retries: 5
+
+    worker-processor:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        restart: always
+        env_file:
+            - .env
+        command: ["bun", "run", "workers:processor"]
+        environment:
+            POSTGRES_HOST: db
+            POSTGRES_PORT: 5432
+            REDIS_URL: redis://redis:6379
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+
+    worker-delivery:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        restart: always
+        env_file:
+            - .env
+        command: ["bun", "run", "workers:delivery"]
+        environment:
+            POSTGRES_HOST: db
+            POSTGRES_PORT: 5432
+            REDIS_URL: redis://redis:6379
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
 
     db:
         image: postgres:latest
