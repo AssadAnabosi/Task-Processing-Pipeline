@@ -1,0 +1,7 @@
+{
+    "field_mappings": {
+        "first_name": "firstName",
+        "last_name": "lastName"
+    },
+    "remove_fields": ["temp"]
+}

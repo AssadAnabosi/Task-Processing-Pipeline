@@ -1,0 +1,14 @@
+{
+    "output_payload": {
+        "job_id": "job_123",
+        "status": "queued",
+        "priority": "normal",
+        "source": "api",
+        "retryable": true
+    },
+    "metadata": {
+        "action_type": "enrich",
+        "fields_added": 3,
+        "overwrite_existing": false
+    }
+}

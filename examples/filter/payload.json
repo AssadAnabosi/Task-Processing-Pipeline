@@ -1,0 +1,5 @@
+{
+    "status": "queued",
+    "attempts": 2,
+    "tags": ["billing", "priority"]
+}

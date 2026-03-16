@@ -1,0 +1,12 @@
+{
+    "output_payload": {
+        "role": "engineer",
+        "firstName": "Ada",
+        "lastName": "Lovelace"
+    },
+    "metadata": {
+        "action_type": "transform",
+        "mapped_fields": 2,
+        "removed_fields": 1
+    }
+}
