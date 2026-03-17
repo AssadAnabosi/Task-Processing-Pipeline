@@ -34,8 +34,16 @@ if (arg) {
 
 async function shutdown(signal: string): Promise<void> {
     console.log(`[workers] received ${signal}, shutting down gracefully…`);
-    await Promise.all(activeWorkers.map((w) => w.close()));
-    process.exit(0);
+    try {
+        await Promise.allSettled(activeWorkers.map((w) => w.close()));
+    } catch (err) {
+        console.error(
+            "[workers] error during shutdown:",
+            err instanceof Error ? err.message : String(err)
+        );
+    } finally {
+        process.exit(0);
+    }
 }
 
 process.on("SIGTERM", () => void shutdown("SIGTERM"));

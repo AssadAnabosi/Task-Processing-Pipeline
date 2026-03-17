@@ -1,5 +1,4 @@
 import { Worker } from "bullmq";
-import type { Job } from "@db/schema";
 import {
     connection,
     processorQueue,
@@ -16,39 +15,8 @@ import {
     MAX_RETRIES,
 } from "./queries";
 import { createJob } from "@db/queries/jobs";
-import { executePipelineAction } from "./actions";
 
-type JobWithAction = Job & {
-    action_type: "transform" | "filter" | "enrich";
-    action_config: unknown;
-};
-
-async function processJob(
-    job: JobWithAction
-): Promise<Record<string, unknown>> {
-    // SIMULATION: LONG RUNNING CPU-INTENSIVE TASK
-    await new Promise((resolve) => setTimeout(resolve, 2500));
-
-    const actionResult = executePipelineAction(
-        job.action_type,
-        job.action_config,
-        job.payload
-    );
-
-    console.log(
-        `[processor] processed job ${job.id} with action ${job.action_type}`
-    );
-
-    return {
-        action_type: job.action_type,
-        ...actionResult,
-    };
-}
-
-// How long to wait before retrying a failed processor job (exponential, in ms).
-function processorRetryDelayMs(retryCount: number): number {
-    return 1_000 * 2 ** retryCount; // 1 s, 2 s, 4 s
-}
+import { processJob, processorRetryDelayMs } from "./processJob";
 
 export function startProcessor(): Worker {
     const worker = new Worker(
@@ -68,15 +36,16 @@ export function startProcessor(): Worker {
                 // If processor indicated a follow-up pipeline, create the job and enqueue it.
                 if (followUp) {
                     console.log(
-                        "[processor] follow-up pipeline indicated, creating job:",
-                        followUp
+                        `[processor] follow-up pipeline indicated, creating job: ${followUp.nextPipelineId}`
                     );
                     const [created] = await createJob({
                         pipeline_id: followUp.nextPipelineId,
                         payload: followUp.outputPayload,
                     });
-                    console.log("[processor] created follow-up job:", created);
                     if (created) {
+                        console.log(
+                            `[processor] created follow-up job: ${created.id}`
+                        );
                         await processorQueue.add(
                             "process",
                             { jobId: created.id },

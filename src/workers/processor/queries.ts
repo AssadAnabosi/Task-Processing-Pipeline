@@ -150,19 +150,15 @@ export async function markJobProcessed(
         const outputPayload = (result as { output_payload?: unknown })
             ?.output_payload;
 
-        const finalStatus =
-            nextPipelineId && outputPayload !== undefined
-                ? "completed"
-                : "processed";
-
         await tx
             .update(jobs)
             .set({
-                status: finalStatus,
+                status: "processed",
                 result,
                 updated_at: new Date(),
-                completed_at:
-                    finalStatus === "completed" ? new Date() : undefined,
+                completed_at: new Date(),
+                // completed_at:
+                //     finalStatus === "completed" ? new Date() : undefined,
             })
             .where(eq(jobs.id, id));
 

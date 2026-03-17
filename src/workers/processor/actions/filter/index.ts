@@ -13,7 +13,7 @@ export class FilterActionProcessor implements ActionProcessor<"filter"> {
         payload: JsonRecord,
         config: ActionConfigByType["filter"]
     ): PipelineProcessResult {
-        const evaluations = config.conditions.map((condition) =>
+        const evaluations = (config.conditions ?? []).map((condition) =>
             this.evaluateCondition(payload[condition.field], condition)
         );
         const passed =

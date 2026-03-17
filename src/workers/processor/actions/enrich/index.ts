@@ -15,7 +15,7 @@ export class EnrichActionProcessor implements ActionProcessor<"enrich"> {
     ): PipelineProcessResult {
         const enriched: JsonRecord = { ...payload };
 
-        for (const [key, value] of Object.entries(config.fields)) {
+        for (const [key, value] of Object.entries(config.fields ?? {})) {
             if (!config.overwrite_existing && Object.hasOwn(enriched, key)) {
                 continue;
             }
