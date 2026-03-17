@@ -31,8 +31,7 @@ async function main() {
     // Handle undefined routes
     app.use((_req, res) => {
         return res.status(NOT_FOUND).json({
-            message:
-                "Oops, you have reached an undefined route, please check your request and try again",
+            error: "Oops, you have reached an undefined route, please check your request and try again",
         });
     });
 
