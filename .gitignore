@@ -6,3 +6,5 @@ drizzle/migrations/
 
 // Ignore environment variable files!!!
 .env*
+
+notes.md
