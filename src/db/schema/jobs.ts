@@ -7,6 +7,7 @@ import {
     integer,
     check,
     index,
+    boolean,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { pipelines as pipelinesTable } from "./pipeline";
@@ -40,6 +41,7 @@ export const jobs = pgTable(
             .default(sql`'{}'::jsonb`),
         retry_count: integer("retry_count").notNull().default(0),
         subscriber_count: integer("subscriber_count"),
+        processed: boolean("processed").notNull().default(false),
         total_deliveries: integer("total_deliveries").notNull().default(0),
         completed_at: timestamp("completed_at"),
         created_at: timestamp("created_at").defaultNow(),

@@ -78,7 +78,7 @@ export function startProcessor(): Worker {
 
                 // If the DB still has retries budget, re-enqueue with backoff.
                 // markJobFailed already reset the status to 'pending'.
-                if (job.retry_count < MAX_RETRIES) {
+                if (job.retry_count < MAX_RETRIES - 1) {
                     await processorQueue.add(
                         "process",
                         { jobId: job.id },
@@ -87,6 +87,26 @@ export function startProcessor(): Worker {
                             // Unique ID per retry attempt prevents duplicate
                             // entries if this code runs more than once.
                             jobId: `process-${job.id}-retry-${job.retry_count + 1}`,
+                        }
+                    );
+                } else {
+                    // Job exhausted retries and is now permanently failed.
+                    // Hand off to delivery queue so subscribers still receive the
+                    // failure notification. Use same idempotent seed job options
+                    // as successful processed jobs.
+                    console.log(
+                        `[processor] job ${job.id} permanently failed, enqueueing for delivery`
+                    );
+                    await deliveryQueue.add(
+                        "deliver",
+                        { jobId: job.id },
+                        {
+                            jobId: `deliver-seed-${job.id}`,
+                            attempts: DELIVERY_MAX_ATTEMPTS,
+                            backoff: {
+                                type: "exponential",
+                                delay: DELIVERY_RETRY_BASE_DELAY_MS,
+                            },
                         }
                     );
                 }

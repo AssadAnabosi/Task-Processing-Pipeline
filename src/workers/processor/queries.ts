@@ -154,6 +154,7 @@ export async function markJobProcessed(
             .update(jobs)
             .set({
                 status: "processed",
+                processed: true,
                 result,
                 updated_at: new Date(),
                 completed_at: new Date(),
@@ -178,7 +179,7 @@ export async function markJobFailed(
 ): Promise<void> {
     const nextRetryCount = currentRetryCount + 1;
 
-    if (currentRetryCount < MAX_RETRIES) {
+    if (currentRetryCount < MAX_RETRIES - 1) {
         await workerDb
             .update(jobs)
             .set({
@@ -192,6 +193,7 @@ export async function markJobFailed(
             .update(jobs)
             .set({
                 status: "processing-failed",
+                processed: false,
                 retry_count: nextRetryCount,
                 updated_at: new Date(),
             })

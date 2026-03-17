@@ -5,12 +5,14 @@ export const DELIVERY_SIGNATURE_HEADER = "x-delivery-sign";
 
 export function buildDeliveryPayload(job: Job): {
     status: Job["status"];
+    processed: boolean;
     jobId: string;
     payload: unknown;
     result: unknown;
 } {
     return {
         status: job.status,
+        processed: job.processed,
         jobId: job.id,
         payload: job.payload,
         result: job.result,

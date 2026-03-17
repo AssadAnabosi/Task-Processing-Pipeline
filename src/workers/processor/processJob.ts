@@ -11,7 +11,7 @@ export async function processJob(
 ): Promise<Record<string, unknown>> {
     // SIMULATION: LONG RUNNING CPU-INTENSIVE TASK
     await new Promise((resolve) => setTimeout(resolve, 2500));
-
+    // throw new Error("simulated processor failure");
     const actionResult = executePipelineAction(
         job.action_type,
         job.action_config,
