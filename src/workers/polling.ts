@@ -1,6 +1,7 @@
-// DEPRECATED - replaced by BullMQ workers that listen for new jobs instead of polling.
-// Kept for reference but not currently used.
-
+/**
+ * @deprecated Replaced by BullMQ workers that listen for new jobs instead of polling.
+ * Kept for reference but not currently used.
+ */
 type PollingWorkerOptions = {
     workerName: string;
     pollIntervalMs: number;
@@ -8,8 +9,12 @@ type PollingWorkerOptions = {
     runBatch: () => Promise<void>;
 };
 
-export function startPollingWorker(options: PollingWorkerOptions): void {
+// Returns a handle with `stop()` so callers can cleanly shut down the poller.
+export function startPollingWorker(options: PollingWorkerOptions): {
+    stop: () => void;
+} {
     let isRunning = false;
+    let intervalId: NodeJS.Timeout | null = null;
 
     const tick = async (): Promise<void> => {
         if (isRunning) return;
@@ -28,12 +33,27 @@ export function startPollingWorker(options: PollingWorkerOptions): void {
 
     // Fire immediately so the first poll does not wait a full interval.
     tick().catch((err) =>
-        console.error(`[${options.workerName}] tick error:`, err)
+        console.error(
+            `[${options.workerName}] tick error:`,
+            err instanceof Error ? err.message : String(err)
+        )
     );
 
-    setInterval(() => {
+    intervalId = setInterval(() => {
         tick().catch((err) =>
-            console.error(`[${options.workerName}] tick error:`, err)
+            console.error(
+                `[${options.workerName}] tick error:`,
+                err instanceof Error ? err.message : String(err)
+            )
         );
     }, options.pollIntervalMs);
+
+    return {
+        stop() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+            }
+        },
+    };
 }

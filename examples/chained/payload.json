@@ -1,0 +1,6 @@
+{
+    "firstName": "Alice",
+    "lastName": "Smith",
+    "debug": "should-be-removed",
+    "email": "alice@example.com"
+}

@@ -15,14 +15,14 @@ export class TransformActionProcessor implements ActionProcessor<"transform"> {
     ): PipelineProcessResult {
         const transformed: JsonRecord = { ...payload };
 
-        for (const [from, to] of Object.entries(config.field_mappings)) {
+        for (const [from, to] of Object.entries(config.field_mappings ?? {})) {
             if (Object.hasOwn(transformed, from)) {
                 transformed[to] = transformed[from];
                 delete transformed[from];
             }
         }
 
-        for (const field of config.remove_fields) {
+        for (const field of config.remove_fields ?? []) {
             delete transformed[field];
         }
 
