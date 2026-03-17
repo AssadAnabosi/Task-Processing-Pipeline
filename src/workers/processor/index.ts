@@ -15,6 +15,7 @@ import {
     markJobProcessed,
     MAX_RETRIES,
 } from "./queries";
+import { createJob } from "@db/queries/jobs";
 import { executePipelineAction } from "./actions";
 
 type JobWithAction = Job & {
@@ -62,8 +63,27 @@ export function startProcessor(): Worker {
             if (!job) return;
 
             try {
-                const result = await processJob(job);
-                await markJobProcessed(job.id, result);
+                const res = await processJob(job);
+                const followUp = await markJobProcessed(job.id, res);
+                // If processor indicated a follow-up pipeline, create the job and enqueue it.
+                if (followUp) {
+                    console.log(
+                        "[processor] follow-up pipeline indicated, creating job:",
+                        followUp
+                    );
+                    const [created] = await createJob({
+                        pipeline_id: followUp.nextPipelineId,
+                        payload: followUp.outputPayload,
+                    });
+                    console.log("[processor] created follow-up job:", created);
+                    if (created) {
+                        await processorQueue.add(
+                            "process",
+                            { jobId: created.id },
+                            { jobId: `process-${created.id}` }
+                        );
+                    }
+                }
 
                 // Hand off to the delivery queue. The jobId option makes this
                 // idempotent: a duplicate enqueue attempt is silently ignored.

@@ -23,6 +23,7 @@ export const pipelines = pgTable(
         action_config: jsonb("action_config")
             .notNull()
             .default(sql`'{}'::jsonb`),
+        next_pipeline_id: uuid("next_pipeline_id"),
         description: text("description"),
         created_at: timestamp("created_at").defaultNow(),
         updated_at: timestamp("updated_at").defaultNow(),

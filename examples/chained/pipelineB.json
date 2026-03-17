@@ -1,0 +1,14 @@
+{
+    "id": "22222222-2222-4222-8222-222222222222",
+    "name": "Customer Enrich B",
+    "source_path": "customer-enrich-b",
+    "secret": "secret-b",
+    "action_type": "enrich",
+    "action_config": {
+        "fields": {
+            "source": "crm"
+        },
+        "overwrite_existing": false
+    },
+    "description": "Enriches normalized customer payloads with source metadata"
+}

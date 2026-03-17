@@ -1,12 +1,13 @@
 import { generateSignature } from "@util/webhookSignature";
 
 const payload = {
-    "status": "queued",
-    "attempts": 2,
-    "tags": ["billing", "priority"]
+    "firstName": "Alice",
+    "lastName": "Smith",
+    "debug": "should-be-removed",
+    "email": "alice@example.com"
 };
 
-const secret = "filter";
+const secret = "secret-a";
 
 const rawPayload = Buffer.isBuffer(payload)
     ? payload.toString("utf8")

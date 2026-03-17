@@ -126,16 +126,52 @@ export async function claimJobById(
 export async function markJobProcessed(
     id: string,
     result: Record<string, unknown>
-): Promise<void> {
-    await workerDb
-        .update(jobs)
-        .set({
-            status: "processed",
-            result,
-            updated_at: new Date(),
-            completed_at: new Date(),
-        })
-        .where(eq(jobs.id, id));
+): Promise<{ nextPipelineId: string; outputPayload: unknown } | undefined> {
+    return await workerDb.transaction(async (tx) => {
+        const jobRows = await tx
+            .select({ pipeline_id: jobs.pipeline_id })
+            .from(jobs)
+            .where(eq(jobs.id, id))
+            .limit(1);
+
+        const job = jobRows[0];
+        if (!job) return undefined;
+
+        const pipelineRows = await tx
+            .select({ next_pipeline_id: pipelines.next_pipeline_id })
+            .from(pipelines)
+            .where(eq(pipelines.id, job.pipeline_id))
+            .limit(1);
+
+        const nextPipelineId = pipelineRows[0]?.next_pipeline_id as
+            | string
+            | undefined;
+
+        const outputPayload = (result as { output_payload?: unknown })
+            ?.output_payload;
+
+        const finalStatus =
+            nextPipelineId && outputPayload !== undefined
+                ? "completed"
+                : "processed";
+
+        await tx
+            .update(jobs)
+            .set({
+                status: finalStatus,
+                result,
+                updated_at: new Date(),
+                completed_at:
+                    finalStatus === "completed" ? new Date() : undefined,
+            })
+            .where(eq(jobs.id, id));
+
+        if (nextPipelineId && outputPayload !== undefined) {
+            return { nextPipelineId, outputPayload };
+        }
+
+        return undefined;
+    });
 }
 
 // On failure: re-queue with incremented retry_count if retries remain,
