@@ -6,6 +6,7 @@ export const subscribers = pgTable("subscribers", {
     id: uuid("id")
         .default(sql`gen_random_uuid()`)
         .primaryKey(),
+    nickname: text("nickname").default(""),
     pipeline_id: uuid("pipeline_id")
         .notNull()
         .references(() => pipelinesTable.id, { onDelete: "cascade" }),

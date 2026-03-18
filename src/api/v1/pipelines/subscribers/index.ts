@@ -26,7 +26,7 @@ router.use(
 router
     .route(base)
     .get(controller.getSubscriberById)
-    .patch(validateBody(updateSubscriberSchema), controller.updateSubscriber)
+    .put(validateBody(updateSubscriberSchema), controller.updateSubscriber)
     .delete(controller.deleteSubscriber);
 
 export default router;

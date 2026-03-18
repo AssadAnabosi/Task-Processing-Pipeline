@@ -2,17 +2,6 @@ import db from "@db/index";
 import { subscribers, type SubscriberInsert } from "@db/schema";
 import { eq, asc, desc } from "drizzle-orm";
 
-export async function getAllSubscribers(sort: "asc" | "desc" = "asc") {
-    return await db
-        .select()
-        .from(subscribers)
-        .orderBy(
-            sort === "asc"
-                ? asc(subscribers.updated_at)
-                : desc(subscribers.updated_at)
-        );
-}
-
 export async function getSubscribersByPipelineId(
     pipelineId: string,
     sort: "asc" | "desc" = "asc"

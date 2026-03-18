@@ -190,6 +190,7 @@ Fields:
 - `pipeline_id`: foreign key to `pipelines.id`
 - `url`: subscriber endpoint
 - `secret`: shared secret used to sign delivery requests
+- `nickname`: optional human-readable name
 - `created_at`, `updated_at`: timestamps
 
 ### `delivery_attempts`
@@ -342,7 +343,9 @@ Example request:
 ```json
 {
   "url": "https://example.com/webhooks/result",
-  "secret": "subscriber-secret"
+  "secret": "subscriber-secret",
+  "nickname": "John Doe"
+}
 }
 ```
 
@@ -350,7 +353,7 @@ Example request:
 
 Returns one subscriber.
 
-#### `PATCH /api/v1/pipelines/:pipelineId/subscribers/:subscriberId`
+#### `PUT /api/v1/pipelines/:pipelineId/subscribers/:subscriberId`
 
 Updates a subscriber.
 
