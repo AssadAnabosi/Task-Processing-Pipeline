@@ -5,6 +5,7 @@ import {
     deliveryQueue,
     DELIVERY_MAX_ATTEMPTS,
     DELIVERY_RETRY_BASE_DELAY_MS,
+    buildDiscoveryQueueOpts,
 } from "../queues";
 import {
     claimJobForDeliveryById,
@@ -109,10 +110,7 @@ export function startDelivery(): Worker {
                     deliveryQueue.add(
                         "deliver",
                         { jobId: id },
-                        {
-                            // Seed jobs fan out to subscriber-level jobs.
-                            jobId: `deliver-seed-${id}`,
-                        }
+                        buildDiscoveryQueueOpts(id)
                     )
                 )
             );

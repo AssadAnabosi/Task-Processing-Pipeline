@@ -1,12 +1,5 @@
 import { Worker } from "bullmq";
-import {
-    connection,
-    processorQueue,
-    deliveryQueue,
-    PROCESSOR_QUEUE_NAME,
-    DELIVERY_MAX_ATTEMPTS,
-    DELIVERY_RETRY_BASE_DELAY_MS,
-} from "../queues";
+import { connection, processorQueue, PROCESSOR_QUEUE_NAME } from "../queues";
 import {
     claimJobById,
     getPendingJobIds,
@@ -17,6 +10,7 @@ import {
 import { createJob } from "@db/queries/jobs";
 
 import { processJob, processorRetryDelayMs } from "./processJob";
+import sendDeliveryMessage from "./delivery";
 
 export function startProcessor(): Worker {
     const worker = new Worker(
@@ -56,18 +50,7 @@ export function startProcessor(): Worker {
 
                 // Hand off to the delivery queue. The jobId option makes this
                 // idempotent: a duplicate enqueue attempt is silently ignored.
-                await deliveryQueue.add(
-                    "deliver",
-                    { jobId: job.id },
-                    {
-                        jobId: `deliver-seed-${job.id}`,
-                        attempts: DELIVERY_MAX_ATTEMPTS,
-                        backoff: {
-                            type: "exponential",
-                            delay: DELIVERY_RETRY_BASE_DELAY_MS,
-                        },
-                    }
-                );
+                await sendDeliveryMessage(job.id);
             } catch (err) {
                 console.error(
                     `[processor] job ${job.id} failed (retry_count=${job.retry_count}):`,
@@ -97,18 +80,7 @@ export function startProcessor(): Worker {
                     console.log(
                         `[processor] job ${job.id} permanently failed, enqueueing for delivery`
                     );
-                    await deliveryQueue.add(
-                        "deliver",
-                        { jobId: job.id },
-                        {
-                            jobId: `deliver-seed-${job.id}`,
-                            attempts: DELIVERY_MAX_ATTEMPTS,
-                            backoff: {
-                                type: "exponential",
-                                delay: DELIVERY_RETRY_BASE_DELAY_MS,
-                            },
-                        }
-                    );
+                    await sendDeliveryMessage(job.id);
                 }
             }
             // We never throw here — retries are managed explicitly above so

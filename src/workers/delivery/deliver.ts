@@ -1,9 +1,5 @@
 import type { Job, Subscriber } from "@db/schema";
-import {
-    deliveryQueue,
-    DELIVERY_MAX_ATTEMPTS,
-    DELIVERY_RETRY_BASE_DELAY_MS,
-} from "../queues";
+import { deliveryQueue, buildDiscoveryQueueOpts } from "../queues";
 
 import {
     getSubscribersByPipelineId,
@@ -75,14 +71,7 @@ export async function enqueueSubscriberDeliveryJobs(job: Job): Promise<void> {
             deliveryQueue.add(
                 "deliver",
                 { jobId: job.id, subscriberId: subscriber.id },
-                {
-                    jobId: `deliver-${job.id}-${subscriber.id}`,
-                    attempts: DELIVERY_MAX_ATTEMPTS,
-                    backoff: {
-                        type: "exponential",
-                        delay: DELIVERY_RETRY_BASE_DELAY_MS,
-                    },
-                }
+                buildDiscoveryQueueOpts(job.id, subscriber.id)
             )
         )
     );

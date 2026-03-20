@@ -15,6 +15,19 @@ export const DELIVERY_RETRY_BASE_DELAY_MS = 500;
 // this queue, runs the pipeline action, then hands off to deliveryQueue.
 export const processorQueue = new Queue(PROCESSOR_QUEUE_NAME, { connection });
 
+export function buildDiscoveryQueueOpts(jobId: string, subscriberId?: string) {
+    return {
+        jobId: subscriberId
+            ? `deliver-${jobId}-${subscriberId}`
+            : `deliver-seed-${jobId}`,
+        attempts: DELIVERY_MAX_ATTEMPTS,
+        backoff: {
+            type: "exponential",
+            delay: DELIVERY_RETRY_BASE_DELAY_MS,
+        },
+    };
+}
+
 // Jobs enter here after processing succeeds. The delivery worker consumes this
 // queue and fans out to each pipeline subscriber.
 // Retry policy (attempts + backoff) is set when enqueuing, not here.
