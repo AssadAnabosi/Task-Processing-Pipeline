@@ -9,7 +9,7 @@ const limiter = rateLimit({
     windowMs: 1000, // 1 second
     max: 1, // limit each IP to 1 requests per windowMs
     message: {
-        error: "Too many requests from this IP, please try again in a while",
+        message: "Too many requests from this IP, please try again in a while",
     },
     standardHeaders: true,
     legacyHeaders: false,
