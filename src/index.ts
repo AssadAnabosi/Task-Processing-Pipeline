@@ -8,6 +8,7 @@ import { NOT_FOUND } from "@util/constants/statusCodes";
 
 import { middlewareErrorHandler } from "@middleware/errorHandler";
 
+import bullBoardRouter from "./services/bullBoard";
 import apiRouter from "./api";
 
 async function main() {
@@ -26,6 +27,7 @@ async function main() {
 
     app.use(express.json());
 
+    app.use("/queues", bullBoardRouter);
     app.use("/api", apiRouter);
 
     // Handle undefined routes

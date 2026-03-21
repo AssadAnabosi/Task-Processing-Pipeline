@@ -17,6 +17,8 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@bull-board/api": "^6.20.6",
+    "@bull-board/express": "^6.20.6",
     "bullmq": "^5.71.0",
     "drizzle-orm": "^0.45.1",
     "drizzle-zod": "^0.8.3",
