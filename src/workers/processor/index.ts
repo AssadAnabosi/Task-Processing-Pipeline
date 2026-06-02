@@ -8,6 +8,7 @@ import {
     MAX_RETRIES,
 } from "./queries";
 import { createJob } from "@db/queries/jobs";
+import { hasPipelineCycle } from "@db/queries/pipelines";
 
 import { processJob, processorRetryDelayMs } from "./processJob";
 import sendDeliveryMessage from "./delivery";
@@ -29,22 +30,32 @@ export function startProcessor(): Worker {
                 const followUp = await markJobProcessed(job.id, res);
                 // If processor indicated a follow-up pipeline, create the job and enqueue it.
                 if (followUp) {
-                    console.log(
-                        `[processor] follow-up pipeline indicated, creating job: ${followUp.nextPipelineId}`
+                    // Check for cycles in the pipeline chain
+                    const hasCycle = await hasPipelineCycle(
+                        followUp.nextPipelineId
                     );
-                    const [created] = await createJob({
-                        pipeline_id: followUp.nextPipelineId,
-                        payload: followUp.outputPayload,
-                    });
-                    if (created) {
+                    if (hasCycle) {
+                        console.warn(
+                            `[processor] cycle detected in pipeline chain from ${followUp.nextPipelineId}, skipping follow-up`
+                        );
+                    } else {
                         console.log(
-                            `[processor] created follow-up job: ${created.id}`
+                            `[processor] follow-up pipeline indicated, creating job: ${followUp.nextPipelineId}`
                         );
-                        await processorQueue.add(
-                            "process",
-                            { jobId: created.id },
-                            { jobId: `process-${created.id}` }
-                        );
+                        const [created] = await createJob({
+                            pipeline_id: followUp.nextPipelineId,
+                            payload: followUp.outputPayload,
+                        });
+                        if (created) {
+                            console.log(
+                                `[processor] created follow-up job: ${created.id}`
+                            );
+                            await processorQueue.add(
+                                "process",
+                                { jobId: created.id },
+                                { jobId: `process-${created.id}` }
+                            );
+                        }
                     }
                 }
 

@@ -312,8 +312,6 @@ Deletes a pipeline.
 
 Returns jobs.
 
-Note: the current implementation returns all jobs ordered by timestamp and does not filter by `pipelineId` at the query layer.
-
 #### `GET /api/v1/pipelines/:pipelineId/jobs/:jobId`
 
 Returns one job.

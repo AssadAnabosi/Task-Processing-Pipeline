@@ -44,6 +44,18 @@ export async function postPipeline(
 ) {
     let created;
 
+    // Validate pipeline chain if next_pipeline_id is provided
+    if (req.body.next_pipeline_id) {
+        const hasCycle = await queries.hasPipelineCycle(
+            req.body.next_pipeline_id
+        );
+        if (hasCycle) {
+            throw new ConflictError(
+                "Pipeline chain contains a cycle. Please remove the cycle before proceeding."
+            );
+        }
+    }
+
     try {
         created = await queries.createPipeline(req.body);
     } catch (error) {
@@ -63,6 +75,22 @@ export async function updatePipeline(
 ) {
     const { pipelineId } = req.params;
     let updated;
+
+    // Validate pipeline chain if next_pipeline_id is provided in update
+    if (req.body.next_pipeline_id) {
+        // Cannot update to point to itself
+        if (req.body.next_pipeline_id === pipelineId) {
+            throw new ConflictError("A pipeline cannot point to itself");
+        }
+        const hasCycle = await queries.hasPipelineCycle(
+            req.body.next_pipeline_id
+        );
+        if (hasCycle) {
+            throw new ConflictError(
+                "Pipeline chain contains a cycle. Please remove the cycle before proceeding."
+            );
+        }
+    }
 
     try {
         updated = await queries.updatePipelineById(pipelineId, req.body);

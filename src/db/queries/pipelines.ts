@@ -55,3 +55,39 @@ export async function deletePipelineById(id: string) {
     await db.delete(pipelines).where(eq(pipelines.id, id));
     return true;
 }
+
+/**
+ * Check if following a pipeline chain from startId leads to a cycle.
+ * Returns true if a cycle is detected, false if the chain terminates safely.
+ * @param startId - The pipeline ID to start checking from
+ * @param maxDepth - Maximum chain depth to prevent runaway checks (default: 100)
+ */
+export async function hasPipelineCycle(
+    startId: string,
+    maxDepth: number = 100
+): Promise<boolean> {
+    const visited = new Set<string>();
+    let currentId: string | null = startId;
+    let depth = 0;
+
+    while (currentId && depth < maxDepth) {
+        if (visited.has(currentId)) {
+            // Cycle detected
+            return true;
+        }
+
+        visited.add(currentId);
+        const pipeline = await getPipelineById(currentId);
+
+        if (!pipeline?.next_pipeline_id) {
+            // Chain terminates - no cycle
+            return false;
+        }
+
+        currentId = pipeline.next_pipeline_id;
+        depth++;
+    }
+
+    // If we hit maxDepth, treat as a potential issue (very long chain)
+    return depth >= maxDepth;
+}

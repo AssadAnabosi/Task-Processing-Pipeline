@@ -59,3 +59,8 @@ The project uses Bun for application startup and local development scripts. This
 * User can subscribe to any pipeline within the chain, not just the final result. This provides flexibility for users to consume intermediate outputs or final results as needed, without being forced to subscribe to the entire workflow.
 
 * User can also hit the chain in the middle by posting to its webhook, rather than always starting at the beginning. This allows for more dynamic interactions with the pipelines, enabling users to trigger specific parts of the workflow as needed, rather than being constrained to a linear flow.
+
+* **Cycle detection safeguards**: The system prevents infinite loops with multiple layers of protection:
+  * API validation detects cycles when creating/updating pipelines with `next_pipeline_id`
+  * Database constraint prevents direct self-references
+  * Runtime cycle detection in the processor skips follow-up jobs if a cycle would be created
